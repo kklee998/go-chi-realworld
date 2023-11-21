@@ -27,6 +27,18 @@ type User struct {
 	Bio      string `json:"bio"`
 	Image    string `json:"image"`
 }
+
+type UpdateUser struct {
+	Email    string `json:"email"`
+	Token    string `json:"token"`
+	Username string `json:"username"`
+	Bio      string `json:"bio"`
+	Image    string `json:"image"`
+}
+
+type UpdateUserRequest struct {
+	UpdateUser UpdateUser `json:"user"`
+}
 type UserResponse struct {
 	User User `json:"user"`
 }
@@ -95,6 +107,41 @@ func main() {
 				Username: LoginUserRequest.LoginUser.Username,
 				Email:    "",
 				Token:    "Login Token",
+				Bio:      "",
+				Image:    "",
+			}}
+
+			encoder := json.NewEncoder(w)
+			encoder.Encode(userResponse)
+		})
+	})
+
+	r.Route("/user", func(r chi.Router) {
+		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+			userResponse := UserResponse{User: User{
+				Username: "",
+				Email:    "",
+				Token:    "",
+				Bio:      "",
+				Image:    "",
+			}}
+
+			encoder := json.NewEncoder(w)
+			encoder.Encode(userResponse)
+		})
+
+		r.Put("/", func(w http.ResponseWriter, r *http.Request) {
+			var updateUserRequest UpdateUserRequest
+			decoder := json.NewDecoder(r.Body)
+			err := decoder.Decode(&updateUserRequest)
+			if err != nil {
+				log.Fatalf("Unable to decode UpdateUserRequest, %s", err.Error())
+			}
+
+			userResponse := UserResponse{User: User{
+				Username: updateUserRequest.UpdateUser.Username,
+				Email:    updateUserRequest.UpdateUser.Email,
+				Token:    "",
 				Bio:      "",
 				Image:    "",
 			}}

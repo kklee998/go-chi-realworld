@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -48,6 +49,7 @@ type LoginUser struct {
 }
 
 func main() {
+	port := "8080"
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)
@@ -102,5 +104,6 @@ func main() {
 		})
 	})
 
-	http.ListenAndServe(":8080", r)
+	log.Printf("Starting Server on Port %s", port)
+	http.ListenAndServe(fmt.Sprintf(":%s", port), r)
 }

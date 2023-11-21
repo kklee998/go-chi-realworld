@@ -38,6 +38,15 @@ type GenericErrorModel struct {
 	Errors Errors `json:"errors"`
 }
 
+type LoginUserRequest struct {
+	LoginUser LoginUser `json:"user"`
+}
+
+type LoginUser struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
 func main() {
 	r := chi.NewRouter()
 
@@ -63,6 +72,26 @@ func main() {
 			Username: newUserRequest.NewUser.Username,
 			Email:    newUserRequest.NewUser.Email,
 			Token:    "",
+			Bio:      "",
+			Image:    "",
+		}}
+
+		encoder := json.NewEncoder(w)
+		encoder.Encode(userResponse)
+	})
+
+	r.Post("/users/login", func(w http.ResponseWriter, r *http.Request) {
+		var LoginUserRequest LoginUserRequest
+		decoder := json.NewDecoder(r.Body)
+		err := decoder.Decode(&LoginUserRequest)
+		if err != nil {
+			log.Fatalf("Unable to decode LoginUserRequest, %s", err.Error())
+		}
+
+		userResponse := UserResponse{User: User{
+			Username: LoginUserRequest.LoginUser.Username,
+			Email:    "",
+			Token:    "Login Token",
 			Bio:      "",
 			Image:    "",
 		}}

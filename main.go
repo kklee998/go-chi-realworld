@@ -60,44 +60,47 @@ func main() {
 		w.Write([]byte(`{"message": "Hello World"}`))
 	})
 
-	r.Post("/users", func(w http.ResponseWriter, r *http.Request) {
-		var newUserRequest NewUserRequest
-		decoder := json.NewDecoder(r.Body)
-		err := decoder.Decode(&newUserRequest)
-		if err != nil {
-			log.Fatalf("Unable to decode NewUserRequest, %s", err.Error())
-		}
+	r.Route("/users", func(r chi.Router) {
+		r.Post("/", func(w http.ResponseWriter, r *http.Request) {
+			var newUserRequest NewUserRequest
+			decoder := json.NewDecoder(r.Body)
+			err := decoder.Decode(&newUserRequest)
+			if err != nil {
+				log.Fatalf("Unable to decode NewUserRequest, %s", err.Error())
+			}
 
-		userResponse := UserResponse{User: User{
-			Username: newUserRequest.NewUser.Username,
-			Email:    newUserRequest.NewUser.Email,
-			Token:    "",
-			Bio:      "",
-			Image:    "",
-		}}
+			userResponse := UserResponse{User: User{
+				Username: newUserRequest.NewUser.Username,
+				Email:    newUserRequest.NewUser.Email,
+				Token:    "",
+				Bio:      "",
+				Image:    "",
+			}}
 
-		encoder := json.NewEncoder(w)
-		encoder.Encode(userResponse)
+			encoder := json.NewEncoder(w)
+			encoder.Encode(userResponse)
+		})
+
+		r.Post("/login", func(w http.ResponseWriter, r *http.Request) {
+			var LoginUserRequest LoginUserRequest
+			decoder := json.NewDecoder(r.Body)
+			err := decoder.Decode(&LoginUserRequest)
+			if err != nil {
+				log.Fatalf("Unable to decode LoginUserRequest, %s", err.Error())
+			}
+
+			userResponse := UserResponse{User: User{
+				Username: LoginUserRequest.LoginUser.Username,
+				Email:    "",
+				Token:    "Login Token",
+				Bio:      "",
+				Image:    "",
+			}}
+
+			encoder := json.NewEncoder(w)
+			encoder.Encode(userResponse)
+		})
 	})
 
-	r.Post("/users/login", func(w http.ResponseWriter, r *http.Request) {
-		var LoginUserRequest LoginUserRequest
-		decoder := json.NewDecoder(r.Body)
-		err := decoder.Decode(&LoginUserRequest)
-		if err != nil {
-			log.Fatalf("Unable to decode LoginUserRequest, %s", err.Error())
-		}
-
-		userResponse := UserResponse{User: User{
-			Username: LoginUserRequest.LoginUser.Username,
-			Email:    "",
-			Token:    "Login Token",
-			Bio:      "",
-			Image:    "",
-		}}
-
-		encoder := json.NewEncoder(w)
-		encoder.Encode(userResponse)
-	})
 	http.ListenAndServe(":8080", r)
 }

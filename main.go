@@ -9,11 +9,16 @@ import (
 	"github.com/go-chi/chi/middleware"
 )
 
-type NewUserRequest struct {
+type NewUser struct {
 	Username string `json:"username"`
 	Email    string `json:"email"`
 	Password string `json:"password"`
 }
+
+type NewUserRequest struct {
+	NewUser NewUser `json:"user"`
+}
+
 type User struct {
 	Email    string `json:"email"`
 	Token    string `json:"token"`
@@ -55,8 +60,8 @@ func main() {
 		}
 
 		userResponse := UserResponse{User: User{
-			Username: newUserRequest.Username,
-			Email:    newUserRequest.Email,
+			Username: newUserRequest.NewUser.Username,
+			Email:    newUserRequest.NewUser.Email,
 			Token:    "",
 			Bio:      "",
 			Image:    "",

@@ -1,4 +1,4 @@
-package main_test
+package main
 
 import (
 	"net/http"
@@ -11,9 +11,7 @@ func TestGETHelloWorld(t *testing.T) {
 	request, _ := http.NewRequest(http.MethodGet, "/", nil)
 	response := httptest.NewRecorder()
 
-	func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`{"message": "Hello World"}`))
-	}(response, request)
+	HelloWorld(response, request)
 
 	got := response.Body.String()
 	want := `{"message": "Hello World"}`

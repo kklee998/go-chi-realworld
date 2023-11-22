@@ -60,6 +60,10 @@ type LoginUser struct {
 	Password string `json:"password"`
 }
 
+func HelloWorld(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte(`{"message": "Hello World"}`))
+}
+
 func main() {
 	port := "8080"
 	r := chi.NewRouter()
@@ -70,9 +74,7 @@ func main() {
 	r.Use(middleware.Recoverer)
 
 	r.Use(middleware.SetHeader("Content-Type", "application/json"))
-	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`{"message": "Hello World"}`))
-	})
+	r.Get("/", HelloWorld)
 
 	r.Route("/users", func(r chi.Router) {
 		r.Post("/", func(w http.ResponseWriter, r *http.Request) {

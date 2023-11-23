@@ -20,7 +20,7 @@ type NewUserRequest struct {
 	NewUser NewUser `json:"user"`
 }
 
-type User struct {
+type UserModel struct {
 	Email    string `json:"email"`
 	Token    string `json:"token"`
 	Username string `json:"username"`
@@ -40,7 +40,7 @@ type UpdateUserRequest struct {
 	UpdateUser UpdateUser `json:"user"`
 }
 type UserResponse struct {
-	User User `json:"user"`
+	User UserModel `json:"user"`
 }
 
 type Errors struct {
@@ -85,7 +85,7 @@ func main() {
 				log.Fatalf("Unable to decode NewUserRequest, %s", err.Error())
 			}
 
-			userResponse := UserResponse{User: User{
+			userResponse := UserResponse{User: UserModel{
 				Username: newUserRequest.NewUser.Username,
 				Email:    newUserRequest.NewUser.Email,
 				Token:    "",
@@ -105,7 +105,7 @@ func main() {
 				log.Fatalf("Unable to decode LoginUserRequest, %s", err.Error())
 			}
 
-			userResponse := UserResponse{User: User{
+			userResponse := UserResponse{User: UserModel{
 				Username: LoginUserRequest.LoginUser.Username,
 				Email:    "",
 				Token:    "Login Token",
@@ -120,7 +120,7 @@ func main() {
 
 	r.Route("/user", func(r chi.Router) {
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-			userResponse := UserResponse{User: User{
+			userResponse := UserResponse{User: UserModel{
 				Username: "",
 				Email:    "",
 				Token:    "",
@@ -140,7 +140,7 @@ func main() {
 				log.Fatalf("Unable to decode UpdateUserRequest, %s", err.Error())
 			}
 
-			userResponse := UserResponse{User: User{
+			userResponse := UserResponse{User: UserModel{
 				Username: updateUserRequest.UpdateUser.Username,
 				Email:    updateUserRequest.UpdateUser.Email,
 				Token:    "",

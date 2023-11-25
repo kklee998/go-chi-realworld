@@ -1,8 +1,8 @@
-CREATE TABLE users (
-    id identity PRIMARY KEY,
-    email text not null,
-    username text not null,
+CREATE TABLE IF NOT EXISTS users(
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    email VARCHAR(255) not null UNIQUE,
+    username VARCHAR(255) not null UNIQUE,
     password text not null,
-    bio text not null,
-    image text not null
+    bio text,
+    image text
 );

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -8,6 +9,8 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
+	"github.com/jackc/pgx/v5"
+	"github.com/kklee998/go-chi-realworld/db"
 )
 
 type NewUser struct {
@@ -68,6 +71,16 @@ func main() {
 	port := "8080"
 	r := chi.NewRouter()
 
+	ctx := context.Background()
+
+	conn, err := pgx.Connect(ctx, "postgres://postgres:postgres@localhost:5432/example")
+	if err != nil {
+		log.Fatalf(err.Error())
+	}
+	defer conn.Close(ctx)
+
+	queries := db.New(conn)
+
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
@@ -85,12 +98,20 @@ func main() {
 				log.Fatalf("Unable to decode NewUserRequest, %s", err.Error())
 			}
 
+			newUserParam := db.CreateNewUserParams{Username: newUserRequest.NewUser.Username, Email: newUserRequest.NewUser.Username, Password: newUserRequest.NewUser.Password}
+
+			user, err := queries.CreateNewUser(ctx, newUserParam)
+
+			if err != nil {
+				log.Println(err.Error())
+			}
+
 			userResponse := UserResponse{User: UserModel{
-				Username: newUserRequest.NewUser.Username,
-				Email:    newUserRequest.NewUser.Email,
+				Username: user.Username,
+				Email:    user.Email,
 				Token:    "",
-				Bio:      "",
-				Image:    "",
+				Bio:      user.Bio.String,
+				Image:    user.Bio.String,
 			}}
 
 			encoder := json.NewEncoder(w)

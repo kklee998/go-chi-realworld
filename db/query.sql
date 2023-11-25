@@ -2,6 +2,12 @@
 SELECT *
 FROM users
 WHERE id = $1;
+-- name: GetUserWithPassword :one
+SELECT users.*,
+    user_passwords.password
+from users
+    INNER JOIN user_passwords ON users.id = user_passwords.user_id
+WHERE users.username = $1;
 -- name: CreateNewUser :one
 WITH new_user AS (
     INSERT INTO users(username, email)
@@ -28,3 +34,6 @@ RETURNING *;
 UPDATE user_passwords
 SET password = $2
 WHERE user_id = $1;
+-- name: CreateSession :exec
+INSERT INTO user_sessions(user_id, session_token)
+VALUES($1, $2);

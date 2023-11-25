@@ -22,6 +22,6 @@ type UserPassword struct {
 }
 
 type UserSession struct {
-	UserID    pgtype.Int4
-	SessionID string
+	UserID       pgtype.Int4
+	SessionToken string
 }

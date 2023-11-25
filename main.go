@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -10,6 +12,7 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/kklee998/go-chi-realworld/db"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -113,10 +116,6 @@ func main() {
 				log.Println(err.Error())
 			}
 
-			if err != nil {
-				log.Println(err.Error())
-			}
-
 			userResponse := UserResponse{User: User{
 				Username: user.Username,
 				Email:    user.Email,
@@ -137,12 +136,39 @@ func main() {
 				log.Fatalf("Unable to decode LoginUserRequest, %s", err.Error())
 			}
 
+			user, err := queries.GetUserWithPassword(ctx, LoginUserRequest.LoginUser.Username)
+			if err != nil {
+				log.Println(err.Error())
+			}
+
+			hashedPassword := []byte(user.Password)
+			password := []byte(LoginUserRequest.LoginUser.Password)
+			bcrypt.CompareHashAndPassword(hashedPassword, password)
+
+			if err != nil {
+				log.Println(err.Error())
+			}
+
+			sessionToken, err := GenerateRandomStringURLSafe(32)
+			if err != nil {
+				log.Println(err.Error())
+			}
+
+			queries.CreateSession(ctx, db.CreateSessionParams{
+				UserID:       pgtype.Int4{Int32: user.ID, Valid: true},
+				SessionToken: sessionToken,
+			})
+
+			if err != nil {
+				log.Println(err.Error())
+			}
+
 			userResponse := UserResponse{User: User{
-				Username: LoginUserRequest.LoginUser.Username,
-				Email:    "",
-				Token:    "Login Token",
-				Bio:      "",
-				Image:    "",
+				Username: user.Username,
+				Email:    user.Email,
+				Token:    sessionToken,
+				Bio:      user.Bio.String,
+				Image:    user.Image.String,
 			}}
 
 			encoder := json.NewEncoder(w)
@@ -187,4 +213,29 @@ func main() {
 
 	log.Printf("Starting Server on Port %s", port)
 	http.ListenAndServe(fmt.Sprintf(":%s", port), r)
+}
+
+// GenerateRandomStringURLSafe returns a URL-safe, base64 encoded
+// securely generated random string.
+// It will return an error if the system's secure random
+// number generator fails to function correctly, in which
+// case the caller should not continue.
+func GenerateRandomStringURLSafe(n int) (string, error) {
+	b, err := GenerateRandomBytes(n)
+	return base64.URLEncoding.EncodeToString(b), err
+}
+
+// GenerateRandomBytes returns securely generated random bytes.
+// It will return an error if the system's secure random
+// number generator fails to function correctly, in which
+// case the caller should not continue.
+func GenerateRandomBytes(n int) ([]byte, error) {
+	b := make([]byte, n)
+	_, err := rand.Read(b)
+	// Note that err == nil only if we read len(b) bytes.
+	if err != nil {
+		return nil, err
+	}
+
+	return b, nil
 }

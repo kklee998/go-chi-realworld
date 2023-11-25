@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS user_passwords(
 );
 CREATE TABLE IF NOT EXISTS user_sessions(
     user_id INT,
-    session_id VARCHAR(255) not null UNIQUE,
+    session_token VARCHAR(255) not null UNIQUE,
     CONSTRAINT fk_users
       FOREIGN KEY(user_id) 
 	  REFERENCES users(id)

@@ -54,6 +54,21 @@ func (q *Queries) CreateNewUser(ctx context.Context, arg CreateNewUserParams) (C
 	return i, err
 }
 
+const createSession = `-- name: CreateSession :exec
+INSERT INTO user_sessions(user_id, session_token)
+VALUES($1, $2)
+`
+
+type CreateSessionParams struct {
+	UserID       pgtype.Int4
+	SessionToken string
+}
+
+func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) error {
+	_, err := q.db.Exec(ctx, createSession, arg.UserID, arg.SessionToken)
+	return err
+}
+
 const getUser = `-- name: GetUser :one
 SELECT id, email, username, bio, image
 FROM users
@@ -69,6 +84,37 @@ func (q *Queries) GetUser(ctx context.Context, id int32) (User, error) {
 		&i.Username,
 		&i.Bio,
 		&i.Image,
+	)
+	return i, err
+}
+
+const getUserWithPassword = `-- name: GetUserWithPassword :one
+SELECT users.id, users.email, users.username, users.bio, users.image,
+    user_passwords.password
+from users
+    INNER JOIN user_passwords ON users.id = user_passwords.user_id
+WHERE users.username = $1
+`
+
+type GetUserWithPasswordRow struct {
+	ID       int32
+	Email    string
+	Username string
+	Bio      pgtype.Text
+	Image    pgtype.Text
+	Password string
+}
+
+func (q *Queries) GetUserWithPassword(ctx context.Context, username string) (GetUserWithPasswordRow, error) {
+	row := q.db.QueryRow(ctx, getUserWithPassword, username)
+	var i GetUserWithPasswordRow
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Username,
+		&i.Bio,
+		&i.Image,
+		&i.Password,
 	)
 	return i, err
 }

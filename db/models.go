@@ -12,7 +12,16 @@ type User struct {
 	ID       int32
 	Email    string
 	Username string
-	Password string
 	Bio      pgtype.Text
 	Image    pgtype.Text
+}
+
+type UserPassword struct {
+	UserID   pgtype.Int4
+	Password string
+}
+
+type UserSession struct {
+	UserID    pgtype.Int4
+	SessionID string
 }

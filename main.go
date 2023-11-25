@@ -23,7 +23,7 @@ type NewUserRequest struct {
 	NewUser NewUser `json:"user"`
 }
 
-type UserModel struct {
+type User struct {
 	Email    string `json:"email"`
 	Token    string `json:"token"`
 	Username string `json:"username"`
@@ -43,7 +43,7 @@ type UpdateUserRequest struct {
 	UpdateUser UpdateUser `json:"user"`
 }
 type UserResponse struct {
-	User UserModel `json:"user"`
+	User User `json:"user"`
 }
 
 type Errors struct {
@@ -99,14 +99,16 @@ func main() {
 			}
 
 			newUserParam := db.CreateNewUserParams{Username: newUserRequest.NewUser.Username, Email: newUserRequest.NewUser.Username, Password: newUserRequest.NewUser.Password}
-
 			user, err := queries.CreateNewUser(ctx, newUserParam)
+			if err != nil {
+				log.Println(err.Error())
+			}
 
 			if err != nil {
 				log.Println(err.Error())
 			}
 
-			userResponse := UserResponse{User: UserModel{
+			userResponse := UserResponse{User: User{
 				Username: user.Username,
 				Email:    user.Email,
 				Token:    "",
@@ -126,7 +128,7 @@ func main() {
 				log.Fatalf("Unable to decode LoginUserRequest, %s", err.Error())
 			}
 
-			userResponse := UserResponse{User: UserModel{
+			userResponse := UserResponse{User: User{
 				Username: LoginUserRequest.LoginUser.Username,
 				Email:    "",
 				Token:    "Login Token",
@@ -141,7 +143,7 @@ func main() {
 
 	r.Route("/user", func(r chi.Router) {
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-			userResponse := UserResponse{User: UserModel{
+			userResponse := UserResponse{User: User{
 				Username: "",
 				Email:    "",
 				Token:    "",
@@ -161,7 +163,7 @@ func main() {
 				log.Fatalf("Unable to decode UpdateUserRequest, %s", err.Error())
 			}
 
-			userResponse := UserResponse{User: UserModel{
+			userResponse := UserResponse{User: User{
 				Username: updateUserRequest.UpdateUser.Username,
 				Email:    updateUserRequest.UpdateUser.Email,
 				Token:    "",

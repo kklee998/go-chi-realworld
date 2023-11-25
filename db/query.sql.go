@@ -12,25 +12,42 @@ import (
 )
 
 const createNewUser = `-- name: CreateNewUser :one
-INSERT INTO users (email, username, password)
-VALUES ($1, $2, $3)
-RETURNING id, email, username, password, bio, image
+WITH new_user AS (
+    INSERT INTO users(username, email)
+    VALUES($1, $2)
+    RETURNING id, email, username, bio, image
+),
+new_user_password AS (
+    INSERT INTO user_passwords(user_id, password)
+    SELECT id,
+        $3
+    from new_user
+)
+SELECT id, email, username, bio, image
+FROM new_user
 `
 
 type CreateNewUserParams struct {
-	Email    string
 	Username string
+	Email    string
 	Password string
 }
 
-func (q *Queries) CreateNewUser(ctx context.Context, arg CreateNewUserParams) (User, error) {
-	row := q.db.QueryRow(ctx, createNewUser, arg.Email, arg.Username, arg.Password)
-	var i User
+type CreateNewUserRow struct {
+	ID       int32
+	Email    string
+	Username string
+	Bio      pgtype.Text
+	Image    pgtype.Text
+}
+
+func (q *Queries) CreateNewUser(ctx context.Context, arg CreateNewUserParams) (CreateNewUserRow, error) {
+	row := q.db.QueryRow(ctx, createNewUser, arg.Username, arg.Email, arg.Password)
+	var i CreateNewUserRow
 	err := row.Scan(
 		&i.ID,
 		&i.Email,
 		&i.Username,
-		&i.Password,
 		&i.Bio,
 		&i.Image,
 	)
@@ -38,7 +55,7 @@ func (q *Queries) CreateNewUser(ctx context.Context, arg CreateNewUserParams) (U
 }
 
 const getUser = `-- name: GetUser :one
-SELECT id, email, username, password, bio, image
+SELECT id, email, username, bio, image
 FROM users
 WHERE id = $1
 `
@@ -50,7 +67,6 @@ func (q *Queries) GetUser(ctx context.Context, id int32) (User, error) {
 		&i.ID,
 		&i.Email,
 		&i.Username,
-		&i.Password,
 		&i.Bio,
 		&i.Image,
 	)
@@ -61,18 +77,16 @@ const updateUser = `-- name: UpdateUser :one
 UPDATE users
 SET email = $2,
     username = $3,
-    password = $4,
-    bio = $5,
-    image = $6
+    bio = $4,
+    image = $5
 WHERE id = $1
-RETURNING id, email, username, password, bio, image
+RETURNING id, email, username, bio, image
 `
 
 type UpdateUserParams struct {
 	ID       int32
 	Email    string
 	Username string
-	Password string
 	Bio      pgtype.Text
 	Image    pgtype.Text
 }
@@ -82,7 +96,6 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 		arg.ID,
 		arg.Email,
 		arg.Username,
-		arg.Password,
 		arg.Bio,
 		arg.Image,
 	)
@@ -91,9 +104,24 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 		&i.ID,
 		&i.Email,
 		&i.Username,
-		&i.Password,
 		&i.Bio,
 		&i.Image,
 	)
 	return i, err
+}
+
+const updateUserPassword = `-- name: UpdateUserPassword :exec
+UPDATE user_passwords
+SET password = $2
+WHERE user_id = $1
+`
+
+type UpdateUserPasswordParams struct {
+	UserID   pgtype.Int4
+	Password string
+}
+
+func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error {
+	_, err := q.db.Exec(ctx, updateUserPassword, arg.UserID, arg.Password)
+	return err
 }

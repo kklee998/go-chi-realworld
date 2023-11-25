@@ -11,6 +11,7 @@ import (
 	"github.com/go-chi/chi/middleware"
 	"github.com/jackc/pgx/v5"
 	"github.com/kklee998/go-chi-realworld/db"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type NewUser struct {
@@ -98,7 +99,15 @@ func main() {
 				log.Fatalf("Unable to decode NewUserRequest, %s", err.Error())
 			}
 
-			newUserParam := db.CreateNewUserParams{Username: newUserRequest.NewUser.Username, Email: newUserRequest.NewUser.Username, Password: newUserRequest.NewUser.Password}
+			unhashedPassword := []byte(newUserRequest.NewUser.Password)
+			bcryptHash, _ := bcrypt.GenerateFromPassword(unhashedPassword, 10)
+			hashedPassword := string(bcryptHash)
+
+			newUserParam := db.CreateNewUserParams{
+				Username: newUserRequest.NewUser.Username,
+				Email:    newUserRequest.NewUser.Username,
+				Password: hashedPassword,
+			}
 			user, err := queries.CreateNewUser(ctx, newUserParam)
 			if err != nil {
 				log.Println(err.Error())

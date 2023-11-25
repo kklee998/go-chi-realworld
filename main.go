@@ -5,13 +5,16 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
+	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/kklee998/go-chi-realworld/db"
 	"golang.org/x/crypto/bcrypt"
@@ -99,7 +102,8 @@ func main() {
 			decoder := json.NewDecoder(r.Body)
 			err := decoder.Decode(&newUserRequest)
 			if err != nil {
-				log.Fatalf("Unable to decode NewUserRequest, %s", err.Error())
+				ErrorResponse(w, err.Error(), http.StatusUnprocessableEntity)
+				return
 			}
 
 			unhashedPassword := []byte(newUserRequest.NewUser.Password)
@@ -113,7 +117,21 @@ func main() {
 			}
 			user, err := queries.CreateNewUser(ctx, newUserParam)
 			if err != nil {
-				log.Println(err.Error())
+				var pgErr *pgconn.PgError
+				if errors.As(err, &pgErr) {
+					if pgErr.Code == pgerrcode.UniqueViolation {
+						ErrorResponse(w, "Username or email already in use.", http.StatusUnprocessableEntity)
+					} else {
+						log.Printf("Unhandled Postgres Error: %s", pgErr.Message)
+						ErrorResponse(w, "Internal Server Error", http.StatusInternalServerError)
+					}
+
+				} else {
+					log.Printf("Unhandled Error: %s", err.Error())
+					ErrorResponse(w, "Internal Server Error", http.StatusInternalServerError)
+				}
+
+				return
 			}
 
 			userResponse := UserResponse{User: User{
@@ -133,34 +151,42 @@ func main() {
 			decoder := json.NewDecoder(r.Body)
 			err := decoder.Decode(&LoginUserRequest)
 			if err != nil {
-				log.Fatalf("Unable to decode LoginUserRequest, %s", err.Error())
+				ErrorResponse(w, err.Error(), http.StatusUnprocessableEntity)
+				return
 			}
 
 			user, err := queries.GetUserWithPassword(ctx, LoginUserRequest.LoginUser.Username)
 			if err != nil {
-				log.Println(err.Error())
+				log.Println("Username not found.")
+				ErrorResponse(w, "Username or Password invalid.", http.StatusUnauthorized)
+				return
 			}
 
 			hashedPassword := []byte(user.Password)
 			password := []byte(LoginUserRequest.LoginUser.Password)
-			bcrypt.CompareHashAndPassword(hashedPassword, password)
-
+			err = bcrypt.CompareHashAndPassword(hashedPassword, password)
 			if err != nil {
-				log.Println(err.Error())
+				log.Println("Passwords does not match.")
+				ErrorResponse(w, "Username or Password invalid.", http.StatusUnauthorized)
+				return
 			}
 
 			sessionToken, err := GenerateRandomStringURLSafe(32)
 			if err != nil {
 				log.Println(err.Error())
+				ErrorResponse(w, "Internal Server Error", http.StatusInternalServerError)
+				return
 			}
 
-			queries.CreateSession(ctx, db.CreateSessionParams{
+			err = queries.CreateSession(ctx, db.CreateSessionParams{
 				UserID:       pgtype.Int4{Int32: user.ID, Valid: true},
 				SessionToken: sessionToken,
 			})
 
 			if err != nil {
 				log.Println(err.Error())
+				ErrorResponse(w, "Internal Server Error", http.StatusInternalServerError)
+				return
 			}
 
 			userResponse := UserResponse{User: User{
@@ -238,4 +264,13 @@ func GenerateRandomBytes(n int) ([]byte, error) {
 	}
 
 	return b, nil
+}
+
+func ErrorResponse(w http.ResponseWriter, err string, code int) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(code)
+	var errorBody []string
+	errorBody = append(errorBody, err)
+	erorResponse := GenericErrorModel{Errors: Errors{Body: errorBody}}
+	json.NewEncoder(w).Encode(erorResponse)
 }

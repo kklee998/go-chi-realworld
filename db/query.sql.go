@@ -3,7 +3,7 @@
 //   sqlc v1.24.0
 // source: query.sql
 
-package main
+package db
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 
 const getUser = `-- name: GetUser :one
 SELECT id, email, username, password, bio, image FROM users
-WHERE id = $1 LIMIT 1
+WHERE id = $1
 `
 
 func (q *Queries) GetUser(ctx context.Context, id interface{}) (User, error) {

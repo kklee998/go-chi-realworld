@@ -87,6 +87,7 @@ func main() {
 	defer conn.Close(ctx)
 
 	queries := db.New(conn)
+	authGuard := AuthGuard{SessionStore: queries}
 
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
@@ -203,13 +204,18 @@ func main() {
 	})
 
 	r.Route("/user", func(r chi.Router) {
+		r.Use(authGuard.AuthRequired)
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+			ctx := r.Context()
+			s := ctx.Value(userKey).(db.GetUserBySessionTokenRow)
+			user, _ := queries.GetUserByID(ctx, s.ID)
+
 			userResponse := UserResponse{User: User{
-				Username: "",
-				Email:    "",
+				Username: user.Username,
+				Email:    user.Email,
 				Token:    "",
-				Bio:      "",
-				Image:    "",
+				Bio:      user.Bio.String,
+				Image:    user.Image.String,
 			}}
 
 			encoder := json.NewEncoder(w)

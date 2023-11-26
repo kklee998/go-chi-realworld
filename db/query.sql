@@ -1,7 +1,11 @@
--- name: GetUser :one
+-- name: GetUserByID :one
 SELECT *
 FROM users
 WHERE id = $1;
+-- name: GetUserByUsername :one
+SELECT *
+FROM users
+WHERE username = $1;
 -- name: GetUserWithPassword :one
 SELECT users.*,
     user_passwords.password
@@ -37,3 +41,9 @@ WHERE user_id = $1;
 -- name: CreateSession :exec
 INSERT INTO user_sessions(user_id, session_token)
 VALUES($1, $2);
+-- name: GetUserBySessionToken :one
+SELECT users.id,
+    users.username
+from user_sessions
+    INNER JOIN users on users.id = user_sessions.user_id
+WHERE session_token = $1;

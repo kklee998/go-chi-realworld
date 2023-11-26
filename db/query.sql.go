@@ -69,14 +69,53 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) er
 	return err
 }
 
-const getUser = `-- name: GetUser :one
+const getUserByID = `-- name: GetUserByID :one
 SELECT id, email, username, bio, image
 FROM users
 WHERE id = $1
 `
 
-func (q *Queries) GetUser(ctx context.Context, id int32) (User, error) {
-	row := q.db.QueryRow(ctx, getUser, id)
+func (q *Queries) GetUserByID(ctx context.Context, id int32) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByID, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Username,
+		&i.Bio,
+		&i.Image,
+	)
+	return i, err
+}
+
+const getUserBySessionToken = `-- name: GetUserBySessionToken :one
+SELECT users.id,
+    users.username
+from user_sessions
+    INNER JOIN users on users.id = user_sessions.user_id
+WHERE session_token = $1
+`
+
+type GetUserBySessionTokenRow struct {
+	ID       int32
+	Username string
+}
+
+func (q *Queries) GetUserBySessionToken(ctx context.Context, sessionToken string) (GetUserBySessionTokenRow, error) {
+	row := q.db.QueryRow(ctx, getUserBySessionToken, sessionToken)
+	var i GetUserBySessionTokenRow
+	err := row.Scan(&i.ID, &i.Username)
+	return i, err
+}
+
+const getUserByUsername = `-- name: GetUserByUsername :one
+SELECT id, email, username, bio, image
+FROM users
+WHERE username = $1
+`
+
+func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByUsername, username)
 	var i User
 	err := row.Scan(
 		&i.ID,

@@ -54,21 +54,6 @@ func (q *Queries) CreateNewUser(ctx context.Context, arg CreateNewUserParams) (C
 	return i, err
 }
 
-const createSession = `-- name: CreateSession :exec
-INSERT INTO user_sessions(user_id, session_token)
-VALUES($1, $2)
-`
-
-type CreateSessionParams struct {
-	UserID       pgtype.Int4
-	SessionToken string
-}
-
-func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) error {
-	_, err := q.db.Exec(ctx, createSession, arg.UserID, arg.SessionToken)
-	return err
-}
-
 const getUserByID = `-- name: GetUserByID :one
 SELECT id, email, username, bio, image
 FROM users
@@ -85,26 +70,6 @@ func (q *Queries) GetUserByID(ctx context.Context, id int32) (User, error) {
 		&i.Bio,
 		&i.Image,
 	)
-	return i, err
-}
-
-const getUserBySessionToken = `-- name: GetUserBySessionToken :one
-SELECT users.id,
-    users.username
-from user_sessions
-    INNER JOIN users on users.id = user_sessions.user_id
-WHERE session_token = $1
-`
-
-type GetUserBySessionTokenRow struct {
-	ID       int32
-	Username string
-}
-
-func (q *Queries) GetUserBySessionToken(ctx context.Context, sessionToken string) (GetUserBySessionTokenRow, error) {
-	row := q.db.QueryRow(ctx, getUserBySessionToken, sessionToken)
-	var i GetUserBySessionTokenRow
-	err := row.Scan(&i.ID, &i.Username)
 	return i, err
 }
 

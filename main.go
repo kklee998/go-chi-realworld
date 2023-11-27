@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,10 +10,10 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/kklee998/go-chi-realworld/db"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -32,7 +30,7 @@ type NewUserRequest struct {
 
 type User struct {
 	Email    string `json:"email"`
-	Token    string `json:"token"`
+	Token    string `json:"token,omitempty"`
 	Username string `json:"username"`
 	Bio      string `json:"bio"`
 	Image    string `json:"image"`
@@ -69,6 +67,8 @@ type LoginUser struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
+
+var SECRET []byte = []byte("45af0ad7db0f220f42ea4637801692c2")
 
 func HelloWorld(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(`{"message": "Hello World"}`))
@@ -135,10 +135,23 @@ func main() {
 				return
 			}
 
+			newJwt := jwt.NewWithClaims(jwt.SigningMethodHS256,
+				jwt.RegisteredClaims{
+					Subject: user.Username,
+				},
+			)
+			token, err := newJwt.SignedString(SECRET)
+
+			if err != nil {
+				log.Printf("Unhandled Error: %s", err.Error())
+				ErrorResponse(w, "Internal Server Error", http.StatusInternalServerError)
+				return
+			}
+
 			userResponse := UserResponse{User: User{
 				Username: user.Username,
 				Email:    user.Email,
-				Token:    "",
+				Token:    token,
 				Bio:      user.Bio.String,
 				Image:    user.Bio.String,
 			}}
@@ -172,20 +185,15 @@ func main() {
 				return
 			}
 
-			sessionToken, err := GenerateRandomStringURLSafe(32)
-			if err != nil {
-				log.Println(err.Error())
-				ErrorResponse(w, "Internal Server Error", http.StatusInternalServerError)
-				return
-			}
-
-			err = queries.CreateSession(ctx, db.CreateSessionParams{
-				UserID:       pgtype.Int4{Int32: user.ID, Valid: true},
-				SessionToken: sessionToken,
-			})
+			newJwt := jwt.NewWithClaims(jwt.SigningMethodHS256,
+				jwt.RegisteredClaims{
+					Subject: user.Username,
+				},
+			)
+			token, err := newJwt.SignedString(SECRET)
 
 			if err != nil {
-				log.Println(err.Error())
+				log.Printf("Unhandled Error: %s", err.Error())
 				ErrorResponse(w, "Internal Server Error", http.StatusInternalServerError)
 				return
 			}
@@ -193,7 +201,7 @@ func main() {
 			userResponse := UserResponse{User: User{
 				Username: user.Username,
 				Email:    user.Email,
-				Token:    sessionToken,
+				Token:    token,
 				Bio:      user.Bio.String,
 				Image:    user.Image.String,
 			}}
@@ -207,13 +215,12 @@ func main() {
 		r.Use(authGuard.AuthRequired)
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
-			s := ctx.Value(userKey).(db.GetUserBySessionTokenRow)
-			user, _ := queries.GetUserByID(ctx, s.ID)
+			uc := ctx.Value(userKey).(string)
+			user, _ := queries.GetUserByUsername(ctx, uc)
 
 			userResponse := UserResponse{User: User{
 				Username: user.Username,
 				Email:    user.Email,
-				Token:    "",
 				Bio:      user.Bio.String,
 				Image:    user.Image.String,
 			}}
@@ -245,31 +252,6 @@ func main() {
 
 	log.Printf("Starting Server on Port %s", port)
 	http.ListenAndServe(fmt.Sprintf(":%s", port), r)
-}
-
-// GenerateRandomStringURLSafe returns a URL-safe, base64 encoded
-// securely generated random string.
-// It will return an error if the system's secure random
-// number generator fails to function correctly, in which
-// case the caller should not continue.
-func GenerateRandomStringURLSafe(n int) (string, error) {
-	b, err := GenerateRandomBytes(n)
-	return base64.URLEncoding.EncodeToString(b), err
-}
-
-// GenerateRandomBytes returns securely generated random bytes.
-// It will return an error if the system's secure random
-// number generator fails to function correctly, in which
-// case the caller should not continue.
-func GenerateRandomBytes(n int) ([]byte, error) {
-	b := make([]byte, n)
-	_, err := rand.Read(b)
-	// Note that err == nil only if we read len(b) bytes.
-	if err != nil {
-		return nil, err
-	}
-
-	return b, nil
 }
 
 func ErrorResponse(w http.ResponseWriter, err string, code int) {

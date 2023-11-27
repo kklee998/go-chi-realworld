@@ -14,11 +14,3 @@ CREATE TABLE IF NOT EXISTS user_passwords(
 	  REFERENCES users(id)
 	  ON DELETE CASCADE
 );
-CREATE TABLE IF NOT EXISTS user_sessions(
-    user_id INT,
-    session_token VARCHAR(255) not null UNIQUE,
-    CONSTRAINT fk_users
-      FOREIGN KEY(user_id) 
-	  REFERENCES users(id)
-	  ON DELETE CASCADE
-);

@@ -20,8 +20,3 @@ type UserPassword struct {
 	UserID   pgtype.Int4
 	Password string
 }
-
-type UserSession struct {
-	UserID       pgtype.Int4
-	SessionToken string
-}

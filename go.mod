@@ -4,7 +4,10 @@ go 1.21.4
 
 require github.com/go-chi/chi v1.5.5
 
-require github.com/golang-jwt/jwt/v5 v5.1.0 // indirect
+require (
+	github.com/golang-jwt/jwt/v5 v5.1.0 // indirect
+	github.com/joho/godotenv v1.5.1 // indirect
+)
 
 require (
 	github.com/jackc/pgerrcode v0.0.0-20220416144525-469b46aa5efa

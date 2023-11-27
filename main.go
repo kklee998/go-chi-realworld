@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
@@ -16,6 +17,8 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/kklee998/go-chi-realworld/db"
 	"golang.org/x/crypto/bcrypt"
+
+	_ "github.com/joho/godotenv/autoload"
 )
 
 type NewUser struct {
@@ -68,13 +71,16 @@ type LoginUser struct {
 	Password string `json:"password"`
 }
 
-var SECRET []byte = []byte("45af0ad7db0f220f42ea4637801692c2")
-
 func HelloWorld(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(`{"message": "Hello World"}`))
 }
 
 func main() {
+	secret, ok := os.LookupEnv("SECRET")
+	if !ok {
+		log.Fatalln("SECRET env var not set")
+	}
+	secretKey := []byte(secret)
 	port := "8080"
 	r := chi.NewRouter()
 
@@ -87,7 +93,7 @@ func main() {
 	defer conn.Close(ctx)
 
 	queries := db.New(conn)
-	authGuard := AuthGuard{SessionStore: queries}
+	authGuard := AuthGuard{SessionStore: queries, signingSecret: secretKey}
 
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
@@ -140,7 +146,7 @@ func main() {
 					Subject: user.Username,
 				},
 			)
-			token, err := newJwt.SignedString(SECRET)
+			token, err := newJwt.SignedString(secretKey)
 
 			if err != nil {
 				log.Printf("Unhandled Error: %s", err.Error())
@@ -190,7 +196,7 @@ func main() {
 					Subject: user.Username,
 				},
 			)
-			token, err := newJwt.SignedString(SECRET)
+			token, err := newJwt.SignedString(secretKey)
 
 			if err != nil {
 				log.Printf("Unhandled Error: %s", err.Error())

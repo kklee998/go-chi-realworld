@@ -19,7 +19,8 @@ const (
 )
 
 type AuthGuard struct {
-	SessionStore *db.Queries
+	SessionStore  *db.Queries
+	signingSecret []byte
 }
 
 func getTokenFromBearerHeader(r *http.Request) (string, error) {
@@ -48,7 +49,7 @@ func (auth AuthGuard) AuthRequired(next http.Handler) http.Handler {
 				return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
 			}
 
-			return SECRET, nil
+			return auth.signingSecret, nil
 		})
 		if err != nil {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)

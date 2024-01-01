@@ -55,13 +55,13 @@ func (auth AuthGuard) AuthRequired(next http.Handler) http.Handler {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
-		username, err := parsedToken.Claims.GetSubject()
+		email, err := parsedToken.Claims.GetSubject()
 		if err != nil {
 			log.Printf("No subject found in token, %v", parsedToken.Claims)
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
-		ctx = context.WithValue(ctx, userKey, username)
+		ctx = context.WithValue(ctx, userKey, email)
 		r = r.WithContext(ctx)
 		next.ServeHTTP(w, r)
 

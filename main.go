@@ -34,7 +34,7 @@ type NewUserRequest struct {
 
 type User struct {
 	Email    string `json:"email"`
-	Token    string `json:"token,omitempty"`
+	Token    string `json:"token"`
 	Username string `json:"username"`
 	Bio      string `json:"bio"`
 	Image    string `json:"image"`
@@ -68,7 +68,7 @@ type LoginUserRequest struct {
 }
 
 type LoginUser struct {
-	Username string `json:"username"`
+	Email    string `json:"email"`
 	Password string `json:"password"`
 }
 
@@ -120,7 +120,7 @@ func main() {
 
 			newUserParam := db.CreateNewUserParams{
 				Username: newUserRequest.NewUser.Username,
-				Email:    newUserRequest.NewUser.Username,
+				Email:    newUserRequest.NewUser.Email,
 				Password: hashedPassword,
 			}
 			user, err := queries.CreateNewUser(ctx, newUserParam)
@@ -176,10 +176,10 @@ func main() {
 				return
 			}
 
-			user, err := queries.GetUserWithPassword(ctx, LoginUserRequest.LoginUser.Username)
+			user, err := queries.GetUserByEmailWithPassword(ctx, LoginUserRequest.LoginUser.Email)
 			if err != nil {
-				log.Println("Username not found.")
-				ErrorResponse(w, "Username or Password invalid.", http.StatusUnauthorized)
+				log.Println("Email not found.")
+				ErrorResponse(w, "Email or Password invalid.", http.StatusUnauthorized)
 				return
 			}
 
@@ -188,13 +188,13 @@ func main() {
 			err = bcrypt.CompareHashAndPassword(hashedPassword, password)
 			if err != nil {
 				log.Println("Passwords does not match.")
-				ErrorResponse(w, "Username or Password invalid.", http.StatusUnauthorized)
+				ErrorResponse(w, "Email or Password invalid.", http.StatusUnauthorized)
 				return
 			}
 
 			newJwt := jwt.NewWithClaims(jwt.SigningMethodHS256,
 				jwt.RegisteredClaims{
-					Subject: user.Username,
+					Subject: user.Email,
 				},
 			)
 			token, err := newJwt.SignedString(secretKey)
@@ -223,7 +223,7 @@ func main() {
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
 			uc := ctx.Value(userKey).(string)
-			user, _ := queries.GetUserByUsername(ctx, uc)
+			user, _ := queries.GetUserByEmail(ctx, uc)
 
 			userResponse := UserResponse{User: User{
 				Username: user.Username,
@@ -247,10 +247,10 @@ func main() {
 				ErrorResponse(w, "Internal Server Error", http.StatusInternalServerError)
 				return
 			}
-			user, err := queries.GetUserByUsername(ctx, uc)
+			user, err := queries.GetUserByEmail(ctx, uc)
 			if err != nil {
-				log.Println("Username not found.")
-				ErrorResponse(w, "Username invalid.", http.StatusUnauthorized)
+				log.Println("Email not found.")
+				ErrorResponse(w, "Email invalid.", http.StatusUnauthorized)
 				return
 			}
 

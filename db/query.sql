@@ -2,16 +2,16 @@
 SELECT *
 FROM users
 WHERE id = $1;
--- name: GetUserByUsername :one
+-- name: GetUserByEmail :one
 SELECT *
 FROM users
-WHERE username = $1;
--- name: GetUserWithPassword :one
+WHERE email = $1;
+-- name: GetUserByEmailWithPassword :one
 SELECT users.*,
     user_passwords.password
 from users
     INNER JOIN user_passwords ON users.id = user_passwords.user_id
-WHERE users.username = $1;
+WHERE users.email = $1;
 -- name: CreateNewUser :one
 WITH new_user AS (
     INSERT INTO users(username, email)

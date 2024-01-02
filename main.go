@@ -12,9 +12,7 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/kklee998/go-chi-realworld/db"
-	"golang.org/x/crypto/bcrypt"
 
 	_ "github.com/joho/godotenv/autoload"
 )
@@ -30,7 +28,7 @@ type NewUserRequest struct {
 }
 
 type User struct {
-	ID       int32
+	ID       int32  `json:"-"`
 	Email    string `json:"email"`
 	Token    string `json:"token"`
 	Username string `json:"username"`
@@ -194,71 +192,12 @@ func main() {
 			}
 			user := ctx.Value(userKey).(User)
 
-			tx, err := conn.Begin(ctx)
+			updatedUser, err := userService.UpdateUser(ctx, user, updateUserRequest.UpdateUser)
 			if err != nil {
-				log.Fatalf("Unable to Begin a Transaction, %s", err.Error())
 				ErrorResponse(w, "Internal Server Error", http.StatusInternalServerError)
 				return
 			}
-			defer tx.Rollback(ctx)
-			qtx := queries.WithTx(tx)
-
-			var updateUserParams db.UpdateUserParams
-			updateUserParams.ID = user.ID
-			if updateUserRequest.UpdateUser.Bio != nil {
-				updateUserParams.Bio = pgtype.Text{String: *updateUserRequest.UpdateUser.Bio, Valid: true}
-			} else {
-				updateUserParams.Bio = pgtype.Text{String: user.Bio, Valid: true}
-			}
-			if updateUserRequest.UpdateUser.Image != nil {
-				updateUserParams.Image = pgtype.Text{String: *updateUserRequest.UpdateUser.Image, Valid: true}
-			} else {
-				updateUserParams.Image = pgtype.Text{String: user.Image, Valid: true}
-			}
-			if updateUserRequest.UpdateUser.Email != nil {
-				updateUserParams.Email = *updateUserRequest.UpdateUser.Email
-			} else {
-				updateUserParams.Email = user.Email
-			}
-			if updateUserRequest.UpdateUser.Username != nil {
-				updateUserParams.Username = *updateUserRequest.UpdateUser.Username
-			} else {
-				updateUserParams.Username = user.Username
-			}
-
-			updatedUser, err := qtx.UpdateUser(ctx, updateUserParams)
-			if err != nil {
-				log.Printf("Unable to update user due to %s.", err.Error())
-				ErrorResponse(w, "Update User Fail", http.StatusBadRequest)
-				return
-			}
-
-			if updateUserRequest.UpdateUser.Password != nil {
-				log.Println("Updating User Password")
-				unhashedPassword := []byte(*updateUserRequest.UpdateUser.Password)
-				bcryptHash, _ := bcrypt.GenerateFromPassword(unhashedPassword, 10)
-				hashedPassword := string(bcryptHash)
-
-				err := qtx.UpdateUserPassword(ctx, db.UpdateUserPasswordParams{
-					UserID:   pgtype.Int4{Int32: user.ID, Valid: true},
-					Password: hashedPassword,
-				})
-				if err != nil {
-					log.Printf("Unable to update user password due to %s.", err.Error())
-					ErrorResponse(w, "Update User Fail", http.StatusBadRequest)
-					return
-				}
-
-			}
-
-			tx.Commit(ctx)
-			userResponse := UserResponse{User: User{
-				Username: updatedUser.Username,
-				Email:    updatedUser.Email,
-				Token:    "",
-				Bio:      updatedUser.Bio.String,
-				Image:    updatedUser.Image.String,
-			}}
+			userResponse := UserResponse{User: *updatedUser}
 
 			encoder := json.NewEncoder(w)
 			encoder.Encode(userResponse)

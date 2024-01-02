@@ -11,7 +11,6 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/kklee998/go-chi-realworld/db"
@@ -95,7 +94,8 @@ func main() {
 	authGuard := AuthGuard{SessionStore: queries, signingSecret: secretKey}
 
 	authService := AuthService{
-		Secret: secretKey,
+		Queries: queries,
+		Secret:  secretKey,
 	}
 	userService := UserService{
 		Conn:        conn,
@@ -132,64 +132,34 @@ func main() {
 				}
 			}
 
-			userResponse := UserResponse{User: User{
-				Username: user.Username,
-				Email:    user.Email,
-				Token:    user.Token,
-				Bio:      user.Bio,
-				Image:    user.Bio,
-			}}
+			userResponse := UserResponse{User: *user}
 
 			encoder := json.NewEncoder(w)
 			encoder.Encode(userResponse)
 		})
 
 		r.Post("/login", func(w http.ResponseWriter, r *http.Request) {
-			var LoginUserRequest LoginUserRequest
+			var loginUserRequest LoginUserRequest
 			decoder := json.NewDecoder(r.Body)
-			err := decoder.Decode(&LoginUserRequest)
+			err := decoder.Decode(&loginUserRequest)
 			if err != nil {
 				ErrorResponse(w, err.Error(), http.StatusUnprocessableEntity)
 				return
 			}
 
-			user, err := queries.GetUserByEmailWithPassword(ctx, LoginUserRequest.LoginUser.Email)
-			if err != nil {
-				log.Println("Email not found.")
-				ErrorResponse(w, "Email or Password invalid.", http.StatusUnauthorized)
-				return
-			}
-
-			hashedPassword := []byte(user.Password)
-			password := []byte(LoginUserRequest.LoginUser.Password)
-			err = bcrypt.CompareHashAndPassword(hashedPassword, password)
-			if err != nil {
-				log.Println("Passwords does not match.")
-				ErrorResponse(w, "Email or Password invalid.", http.StatusUnauthorized)
-				return
-			}
-
-			newJwt := jwt.NewWithClaims(jwt.SigningMethodHS256,
-				jwt.RegisteredClaims{
-					Subject: user.Email,
-				},
-			)
-			token, err := newJwt.SignedString(secretKey)
+			user, err := authService.Login(ctx, loginUserRequest.LoginUser.Email, loginUserRequest.LoginUser.Password)
 
 			if err != nil {
-				log.Printf("Unhandled Error: %s", err.Error())
-				ErrorResponse(w, "Internal Server Error", http.StatusInternalServerError)
-				return
+				if errors.Is(err, ErrEmailNotFound) || errors.Is(err, ErrPasswordDoesNotMatch) {
+					ErrorResponse(w, "Email or Password invalid.", http.StatusUnauthorized)
+					return
+				} else {
+					ErrorResponse(w, "Internal Server Error", http.StatusInternalServerError)
+					return
+				}
 			}
 
-			userResponse := UserResponse{User: User{
-				Username: user.Username,
-				Email:    user.Email,
-				Token:    token,
-				Bio:      user.Bio.String,
-				Image:    user.Image.String,
-			}}
-
+			userResponse := UserResponse{User: *user}
 			encoder := json.NewEncoder(w)
 			encoder.Encode(userResponse)
 		})

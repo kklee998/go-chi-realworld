@@ -57,7 +57,7 @@ func (us *UserService) NewUser(ctx context.Context, newUser NewUser) (*User, err
 		}
 	}
 
-	token, err := us.AuthService.NewToken(string(userResult.ID))
+	token, err := us.AuthService.NewToken(userResult.Email)
 	if err != nil {
 		return nil, err
 	}

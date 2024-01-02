@@ -91,7 +91,7 @@ func main() {
 	defer conn.Close(ctx)
 
 	queries := db.New(conn)
-	authGuard := AuthGuard{SessionStore: queries, signingSecret: secretKey}
+	authGuard := AuthGuard{signingSecret: secretKey}
 
 	authService := AuthService{
 		Queries: queries,
@@ -169,8 +169,13 @@ func main() {
 		r.Use(authGuard.AuthRequired)
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
-			uc := ctx.Value(userKey).(string)
-			user, _ := queries.GetUserByEmail(ctx, uc)
+			userEmail := ctx.Value(userEmailKey).(string)
+			user, err := queries.GetUserByEmail(ctx, userEmail)
+			if err != nil {
+				log.Println("User not found")
+				ErrorResponse(w, "User not found.", http.StatusUnauthorized)
+				return
+			}
 
 			userResponse := UserResponse{User: User{
 				Username: user.Username,
@@ -185,8 +190,8 @@ func main() {
 
 		r.Put("/", func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
-			uc := ctx.Value(userKey).(string)
 			var updateUserRequest UpdateUserRequest
+
 			decoder := json.NewDecoder(r.Body)
 			err := decoder.Decode(&updateUserRequest)
 			if err != nil {
@@ -194,10 +199,12 @@ func main() {
 				ErrorResponse(w, "Internal Server Error", http.StatusInternalServerError)
 				return
 			}
-			user, err := queries.GetUserByEmail(ctx, uc)
+
+			userEmail := ctx.Value(userEmailKey).(string)
+			user, err := queries.GetUserByEmail(ctx, userEmail)
 			if err != nil {
-				log.Println("Email not found.")
-				ErrorResponse(w, "Email invalid.", http.StatusUnauthorized)
+				log.Println("User not found")
+				ErrorResponse(w, "User not found.", http.StatusUnauthorized)
 				return
 			}
 

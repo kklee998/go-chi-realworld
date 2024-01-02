@@ -9,17 +9,15 @@ import (
 	"strings"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/kklee998/go-chi-realworld/db"
 )
 
 type key string
 
 const (
-	userKey key = "user"
+	userEmailKey key = "userEmail"
 )
 
 type AuthGuard struct {
-	SessionStore  *db.Queries
 	signingSecret []byte
 }
 
@@ -55,13 +53,13 @@ func (auth AuthGuard) AuthRequired(next http.Handler) http.Handler {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
-		email, err := parsedToken.Claims.GetSubject()
+		userEmail, err := parsedToken.Claims.GetSubject()
 		if err != nil {
 			log.Printf("No subject found in token, %v", parsedToken.Claims)
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
-		ctx = context.WithValue(ctx, userKey, email)
+		ctx = context.WithValue(ctx, userEmailKey, userEmail)
 		r = r.WithContext(ctx)
 		next.ServeHTTP(w, r)
 

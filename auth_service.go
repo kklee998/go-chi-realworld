@@ -21,10 +21,10 @@ type AuthService struct {
 	Queries *db.Queries
 }
 
-func (as *AuthService) NewToken(userId string) (*string, error) {
+func (as *AuthService) NewToken(userEmail string) (*string, error) {
 	newJwt := jwt.NewWithClaims(jwt.SigningMethodHS256,
 		jwt.RegisteredClaims{
-			Subject: userId,
+			Subject: userEmail,
 		},
 	)
 	token, err := newJwt.SignedString(as.Secret)
@@ -53,7 +53,7 @@ func (as *AuthService) Login(ctx context.Context, email, password string) (*User
 		return nil, ErrPasswordDoesNotMatch
 	}
 
-	token, err := as.NewToken(string(userResult.ID))
+	token, err := as.NewToken(userResult.Email)
 	if err != nil {
 		return nil, err
 	}

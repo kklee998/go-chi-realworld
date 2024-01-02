@@ -18,18 +18,18 @@ var (
 )
 
 type UserService struct {
-	Conn        *pgx.Conn
-	Queries     *db.Queries
-	AuthService *AuthService
+	conn        *pgx.Conn
+	queries     *db.Queries
+	authService *AuthService
 }
 
 func (us *UserService) NewUser(ctx context.Context, newUser NewUser) (*User, error) {
-	tx, err := us.Conn.Begin(ctx)
+	tx, err := us.conn.Begin(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("unable to start a pgx transaction: %s", err.Error())
 	}
 	defer tx.Rollback(ctx)
-	qtx := us.Queries.WithTx(tx)
+	qtx := us.queries.WithTx(tx)
 
 	unhashedPassword := []byte(newUser.Password)
 	bcryptHash, _ := bcrypt.GenerateFromPassword(unhashedPassword, 10)
@@ -57,7 +57,7 @@ func (us *UserService) NewUser(ctx context.Context, newUser NewUser) (*User, err
 		}
 	}
 
-	token, err := us.AuthService.NewToken(userResult.Email)
+	token, err := us.authService.NewToken(userResult.Email)
 	if err != nil {
 		return nil, err
 	}

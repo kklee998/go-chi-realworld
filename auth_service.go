@@ -17,8 +17,8 @@ var (
 )
 
 type AuthService struct {
-	Secret  []byte
-	Queries *db.Queries
+	secret  []byte
+	queries *db.Queries
 }
 
 func (as *AuthService) NewToken(userEmail string) (*string, error) {
@@ -27,7 +27,7 @@ func (as *AuthService) NewToken(userEmail string) (*string, error) {
 			Subject: userEmail,
 		},
 	)
-	token, err := newJwt.SignedString(as.Secret)
+	token, err := newJwt.SignedString(as.secret)
 
 	if err != nil {
 		log.Printf("Unexpected token signing error: %s", err.Error())
@@ -39,7 +39,7 @@ func (as *AuthService) NewToken(userEmail string) (*string, error) {
 }
 
 func (as *AuthService) Login(ctx context.Context, email, password string) (*User, error) {
-	userResult, err := as.Queries.GetUserByEmailWithPassword(ctx, email)
+	userResult, err := as.queries.GetUserByEmailWithPassword(ctx, email)
 	if err != nil {
 		log.Println("Email not found.")
 		return nil, ErrEmailNotFound

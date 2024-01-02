@@ -94,13 +94,13 @@ func main() {
 	authGuard := AuthGuard{signingSecret: secretKey}
 
 	authService := AuthService{
-		Queries: queries,
-		Secret:  secretKey,
+		queries: queries,
+		secret:  secretKey,
 	}
 	userService := UserService{
-		Conn:        conn,
-		Queries:     queries,
-		AuthService: &authService,
+		conn:        conn,
+		queries:     queries,
+		authService: &authService,
 	}
 
 	r.Use(middleware.RequestID)

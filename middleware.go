@@ -52,6 +52,7 @@ func (auth AuthGuard) AuthRequired(next http.Handler) http.Handler {
 			return auth.signingSecret, nil
 		})
 		if err != nil {
+			log.Printf("Token cannot be parsed or validated. Reason: %s", err.Error())
 			ErrorResponse(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}

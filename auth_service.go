@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/kklee998/go-chi-realworld/db"
@@ -22,11 +23,15 @@ type AuthService struct {
 }
 
 func (as *AuthService) NewToken(userEmail string) (*string, error) {
-	newJwt := jwt.NewWithClaims(jwt.SigningMethodHS256,
-		jwt.RegisteredClaims{
-			Subject: userEmail,
-		},
-	)
+	now := time.Now()
+	expire := now.Add(time.Hour * 1)
+	claims := &jwt.RegisteredClaims{
+		IssuedAt:  jwt.NewNumericDate(now),
+		ExpiresAt: jwt.NewNumericDate(expire),
+		Issuer:    "conduit",
+		Subject:   userEmail,
+	}
+	newJwt := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	token, err := newJwt.SignedString(as.secret)
 
 	if err != nil {

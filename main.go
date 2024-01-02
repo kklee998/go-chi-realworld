@@ -119,6 +119,7 @@ func main() {
 			decoder := json.NewDecoder(r.Body)
 			err := decoder.Decode(&newUserRequest)
 			if err != nil {
+				log.Printf("Unable to decode JSON: %s", err.Error())
 				ErrorResponse(w, err.Error(), http.StatusUnprocessableEntity)
 				return
 			}
@@ -145,6 +146,7 @@ func main() {
 			decoder := json.NewDecoder(r.Body)
 			err := decoder.Decode(&loginUserRequest)
 			if err != nil {
+				log.Printf("Unable to decode JSON: %s", err.Error())
 				ErrorResponse(w, err.Error(), http.StatusUnprocessableEntity)
 				return
 			}
@@ -186,8 +188,8 @@ func main() {
 			decoder := json.NewDecoder(r.Body)
 			err := decoder.Decode(&updateUserRequest)
 			if err != nil {
-				log.Fatalf("Unable to decode UpdateUserRequest, %s", err.Error())
-				ErrorResponse(w, "Internal Server Error", http.StatusInternalServerError)
+				log.Printf("Unable to decode JSON: %s", err.Error())
+				ErrorResponse(w, err.Error(), http.StatusUnprocessableEntity)
 				return
 			}
 			user := ctx.Value(userKey).(User)

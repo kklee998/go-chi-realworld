@@ -12,9 +12,7 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/kklee998/go-chi-realworld/db"
 	"golang.org/x/crypto/bcrypt"
@@ -96,6 +94,15 @@ func main() {
 	queries := db.New(conn)
 	authGuard := AuthGuard{SessionStore: queries, signingSecret: secretKey}
 
+	authService := AuthService{
+		Secret: secretKey,
+	}
+	userService := UserService{
+		Conn:        conn,
+		Queries:     queries,
+		AuthService: &authService,
+	}
+
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
@@ -114,53 +121,23 @@ func main() {
 				return
 			}
 
-			unhashedPassword := []byte(newUserRequest.NewUser.Password)
-			bcryptHash, _ := bcrypt.GenerateFromPassword(unhashedPassword, 10)
-			hashedPassword := string(bcryptHash)
-
-			newUserParam := db.CreateNewUserParams{
-				Username: newUserRequest.NewUser.Username,
-				Email:    newUserRequest.NewUser.Email,
-				Password: hashedPassword,
-			}
-			user, err := queries.CreateNewUser(ctx, newUserParam)
+			user, err := userService.NewUser(ctx, newUserRequest.NewUser)
 			if err != nil {
-				var pgErr *pgconn.PgError
-				if errors.As(err, &pgErr) {
-					if pgErr.Code == pgerrcode.UniqueViolation {
-						ErrorResponse(w, "Username or email already in use.", http.StatusUnprocessableEntity)
-					} else {
-						log.Printf("Unhandled Postgres Error: %s", pgErr.Message)
-						ErrorResponse(w, "Internal Server Error", http.StatusInternalServerError)
-					}
-
+				if errors.Is(err, ErrUsernameOrEmailAlreadyInUse) {
+					ErrorResponse(w, "Username or email already in use.", http.StatusUnprocessableEntity)
+					return
 				} else {
-					log.Printf("Unhandled Error: %s", err.Error())
 					ErrorResponse(w, "Internal Server Error", http.StatusInternalServerError)
+					return
 				}
-
-				return
-			}
-
-			newJwt := jwt.NewWithClaims(jwt.SigningMethodHS256,
-				jwt.RegisteredClaims{
-					Subject: user.Username,
-				},
-			)
-			token, err := newJwt.SignedString(secretKey)
-
-			if err != nil {
-				log.Printf("Unhandled Error: %s", err.Error())
-				ErrorResponse(w, "Internal Server Error", http.StatusInternalServerError)
-				return
 			}
 
 			userResponse := UserResponse{User: User{
 				Username: user.Username,
 				Email:    user.Email,
-				Token:    token,
-				Bio:      user.Bio.String,
-				Image:    user.Bio.String,
+				Token:    user.Token,
+				Bio:      user.Bio,
+				Image:    user.Bio,
 			}}
 
 			encoder := json.NewEncoder(w)

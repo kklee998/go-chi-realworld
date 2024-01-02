@@ -46,7 +46,7 @@ func (auth AuthGuard) AuthRequired(next http.Handler) http.Handler {
 		}
 		parsedToken, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 			}
 
 			return auth.signingSecret, nil

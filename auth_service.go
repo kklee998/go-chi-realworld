@@ -59,6 +59,7 @@ func (as *AuthService) Login(ctx context.Context, email, password string) (*User
 	}
 
 	user := User{
+		ID:       userResult.ID,
 		Username: userResult.Username,
 		Email:    userResult.Email,
 		Token:    *token,

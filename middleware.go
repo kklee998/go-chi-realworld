@@ -9,16 +9,18 @@ import (
 	"strings"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/kklee998/go-chi-realworld/db"
 )
 
 type key string
 
 const (
-	userEmailKey key = "userEmail"
+	userKey key = "user"
 )
 
 type AuthGuard struct {
 	signingSecret []byte
+	queries       *db.Queries
 }
 
 func getTokenFromBearerHeader(r *http.Request) (string, error) {
@@ -39,7 +41,7 @@ func (auth AuthGuard) AuthRequired(next http.Handler) http.Handler {
 		ctx := r.Context()
 		token, err := getTokenFromBearerHeader(r)
 		if err != nil {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			ErrorResponse(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
 		parsedToken, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
@@ -50,16 +52,31 @@ func (auth AuthGuard) AuthRequired(next http.Handler) http.Handler {
 			return auth.signingSecret, nil
 		})
 		if err != nil {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			ErrorResponse(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
 		userEmail, err := parsedToken.Claims.GetSubject()
 		if err != nil {
 			log.Printf("No subject found in token, %v", parsedToken.Claims)
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			ErrorResponse(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
-		ctx = context.WithValue(ctx, userEmailKey, userEmail)
+		userResult, err := auth.queries.GetUserByEmail(ctx, userEmail)
+		if err != nil {
+			log.Println("User not found")
+			ErrorResponse(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		user := User{
+			ID:       userResult.ID,
+			Username: userResult.Username,
+			Email:    userResult.Email,
+			Token:    token,
+			Bio:      userResult.Bio.String,
+			Image:    userResult.Bio.String,
+		}
+		ctx = context.WithValue(ctx, userKey, user)
 		r = r.WithContext(ctx)
 		next.ServeHTTP(w, r)
 

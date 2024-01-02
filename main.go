@@ -30,6 +30,7 @@ type NewUserRequest struct {
 }
 
 type User struct {
+	ID       int32
 	Email    string `json:"email"`
 	Token    string `json:"token"`
 	Username string `json:"username"`
@@ -91,7 +92,10 @@ func main() {
 	defer conn.Close(ctx)
 
 	queries := db.New(conn)
-	authGuard := AuthGuard{signingSecret: secretKey}
+	authGuard := AuthGuard{
+		queries:       queries,
+		signingSecret: secretKey,
+	}
 
 	authService := AuthService{
 		queries: queries,
@@ -169,20 +173,9 @@ func main() {
 		r.Use(authGuard.AuthRequired)
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
-			userEmail := ctx.Value(userEmailKey).(string)
-			user, err := queries.GetUserByEmail(ctx, userEmail)
-			if err != nil {
-				log.Println("User not found")
-				ErrorResponse(w, "User not found.", http.StatusUnauthorized)
-				return
-			}
+			user := ctx.Value(userKey).(User)
 
-			userResponse := UserResponse{User: User{
-				Username: user.Username,
-				Email:    user.Email,
-				Bio:      user.Bio.String,
-				Image:    user.Image.String,
-			}}
+			userResponse := UserResponse{User: user}
 
 			encoder := json.NewEncoder(w)
 			encoder.Encode(userResponse)
@@ -199,14 +192,7 @@ func main() {
 				ErrorResponse(w, "Internal Server Error", http.StatusInternalServerError)
 				return
 			}
-
-			userEmail := ctx.Value(userEmailKey).(string)
-			user, err := queries.GetUserByEmail(ctx, userEmail)
-			if err != nil {
-				log.Println("User not found")
-				ErrorResponse(w, "User not found.", http.StatusUnauthorized)
-				return
-			}
+			user := ctx.Value(userKey).(User)
 
 			tx, err := conn.Begin(ctx)
 			if err != nil {
@@ -222,12 +208,12 @@ func main() {
 			if updateUserRequest.UpdateUser.Bio != nil {
 				updateUserParams.Bio = pgtype.Text{String: *updateUserRequest.UpdateUser.Bio, Valid: true}
 			} else {
-				updateUserParams.Bio = user.Bio
+				updateUserParams.Bio = pgtype.Text{String: user.Bio, Valid: true}
 			}
 			if updateUserRequest.UpdateUser.Image != nil {
 				updateUserParams.Image = pgtype.Text{String: *updateUserRequest.UpdateUser.Image, Valid: true}
 			} else {
-				updateUserParams.Image = user.Image
+				updateUserParams.Image = pgtype.Text{String: user.Image, Valid: true}
 			}
 			if updateUserRequest.UpdateUser.Email != nil {
 				updateUserParams.Email = *updateUserRequest.UpdateUser.Email

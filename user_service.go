@@ -62,6 +62,7 @@ func (us *UserService) NewUser(ctx context.Context, newUser NewUser) (*User, err
 		return nil, err
 	}
 	user := User{
+		ID:       userResult.ID,
 		Username: userResult.Username,
 		Email:    userResult.Email,
 		Token:    *token,

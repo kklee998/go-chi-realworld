@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -105,6 +104,11 @@ func main() {
 		authService: &authService,
 	}
 
+	userHandler := UserHandler{
+		authService: &authService,
+		userService: &userService,
+	}
+
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
@@ -114,96 +118,14 @@ func main() {
 	r.Get("/", HelloWorld)
 
 	r.Route("/users", func(r chi.Router) {
-		r.Post("/", func(w http.ResponseWriter, r *http.Request) {
-			var newUserRequest NewUserRequest
-			decoder := json.NewDecoder(r.Body)
-			err := decoder.Decode(&newUserRequest)
-			if err != nil {
-				log.Printf("Unable to decode JSON: %s", err.Error())
-				ErrorResponse(w, err.Error(), http.StatusUnprocessableEntity)
-				return
-			}
-
-			user, err := userService.NewUser(ctx, newUserRequest.NewUser)
-			if err != nil {
-				if errors.Is(err, ErrUsernameOrEmailAlreadyInUse) {
-					ErrorResponse(w, "Username or email already in use.", http.StatusUnprocessableEntity)
-					return
-				} else {
-					ErrorResponse(w, "Internal Server Error", http.StatusInternalServerError)
-					return
-				}
-			}
-
-			userResponse := UserResponse{User: *user}
-
-			encoder := json.NewEncoder(w)
-			encoder.Encode(userResponse)
-		})
-
-		r.Post("/login", func(w http.ResponseWriter, r *http.Request) {
-			var loginUserRequest LoginUserRequest
-			decoder := json.NewDecoder(r.Body)
-			err := decoder.Decode(&loginUserRequest)
-			if err != nil {
-				log.Printf("Unable to decode JSON: %s", err.Error())
-				ErrorResponse(w, err.Error(), http.StatusUnprocessableEntity)
-				return
-			}
-
-			user, err := authService.Login(ctx, loginUserRequest.LoginUser.Email, loginUserRequest.LoginUser.Password)
-
-			if err != nil {
-				if errors.Is(err, ErrEmailNotFound) || errors.Is(err, ErrPasswordDoesNotMatch) {
-					ErrorResponse(w, "Email or Password invalid.", http.StatusUnauthorized)
-					return
-				} else {
-					ErrorResponse(w, "Internal Server Error", http.StatusInternalServerError)
-					return
-				}
-			}
-
-			userResponse := UserResponse{User: *user}
-			encoder := json.NewEncoder(w)
-			encoder.Encode(userResponse)
-		})
+		r.Post("/", userHandler.Create)
+		r.Post("/login", userHandler.Login)
 	})
 
 	r.Route("/user", func(r chi.Router) {
 		r.Use(authGuard.AuthRequired)
-		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-			ctx := r.Context()
-			user := ctx.Value(userKey).(User)
-
-			userResponse := UserResponse{User: user}
-
-			encoder := json.NewEncoder(w)
-			encoder.Encode(userResponse)
-		})
-
-		r.Put("/", func(w http.ResponseWriter, r *http.Request) {
-			ctx := r.Context()
-			var updateUserRequest UpdateUserRequest
-
-			decoder := json.NewDecoder(r.Body)
-			err := decoder.Decode(&updateUserRequest)
-			if err != nil {
-				log.Printf("Unable to decode JSON: %s", err.Error())
-				ErrorResponse(w, err.Error(), http.StatusUnprocessableEntity)
-				return
-			}
-			user := ctx.Value(userKey).(User)
-
-			updatedUser, err := userService.UpdateUser(ctx, user, updateUserRequest.UpdateUser)
-			if err != nil {
-				ErrorResponse(w, "Internal Server Error", http.StatusInternalServerError)
-				return
-			}
-			userResponse := UserResponse{User: *updatedUser}
-
-			encoder := json.NewEncoder(w)
-			encoder.Encode(userResponse)
-		})
+		r.Get("/", userHandler.Get)
+		r.Put("/", userHandler.Update)
 	})
 
 	log.Printf("Starting Server on Port %s", port)
